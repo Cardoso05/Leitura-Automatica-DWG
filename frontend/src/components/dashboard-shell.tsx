@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Upload, X, Menu, LogOut, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Upload, X, Menu, LogOut, ChevronRight, Settings2 } from "lucide-react";
 import { useState } from "react";
 
 import { useAuth } from "@/context/auth-context";
@@ -13,6 +13,7 @@ import { Button } from "./ui/button";
 const navLinks = [
   { href: "/dashboard", label: "Projetos", icon: LayoutDashboard },
   { href: "/dashboard/upload", label: "Novo Takeoff", icon: Upload },
+  { href: "/dashboard/mappings", label: "Mapeamentos", icon: Settings2 },
 ];
 
 const planBadgeColors: Record<string, string> = {

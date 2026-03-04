@@ -49,18 +49,18 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
 
-     @field_validator("backend_cors_origins", mode="before")
-     @classmethod
-     def assemble_cors(cls, value: List[str] | str) -> List[str]:
-         if isinstance(value, str):
-             value = value.strip()
-             if value.startswith("[") and value.endswith("]"):
-                 # JSON array em string
-                 import json
+    @field_validator("backend_cors_origins", mode="before")
+    @classmethod
+    def assemble_cors(cls, value: List[str] | str) -> List[str]:
+        if isinstance(value, str):
+            value = value.strip()
+            if value.startswith("[") and value.endswith("]"):
+                # JSON array em string
+                import json
 
-                 return json.loads(value)
-             return [host.strip() for host in value.split(",")]
-         return value
+                return json.loads(value)
+            return [host.strip() for host in value.split(",")]
+        return value
 
     @field_validator("storage_local_path", "storage_results_path", mode="before")
     @classmethod
@@ -78,6 +78,6 @@ class Settings(BaseSettings):
         return sanitized
 
 
- @lru_cache
- def get_settings() -> Settings:
-     return Settings()
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
