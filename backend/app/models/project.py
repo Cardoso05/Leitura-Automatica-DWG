@@ -20,6 +20,9 @@ class Discipline(str, Enum):
     networking = "networking"
     fire = "fire"
     hvac = "hvac"
+    spda = "spda"
+    architecture = "architecture"
+    auxiliary = "auxiliary"
     generic = "generic"
 
 
