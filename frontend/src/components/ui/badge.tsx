@@ -13,11 +13,17 @@ const statusStyles: Record<string, string> = {
 /* ── Discipline badges ── */
 const disciplineStyles: Record<string, string> = {
   eletrica:   "bg-[rgba(255,107,53,0.10)] text-[#FF6B35] border border-[rgba(255,107,53,0.25)]",
+  electrical: "bg-[rgba(255,107,53,0.10)] text-[#FF6B35] border border-[rgba(255,107,53,0.25)]",
   hidraulica: "bg-[rgba(59,130,246,0.10)] text-[#3B82F6] border border-[rgba(59,130,246,0.25)]",
+  plumbing:   "bg-[rgba(59,130,246,0.10)] text-[#3B82F6] border border-[rgba(59,130,246,0.25)]",
   rede:       "bg-[rgba(139,92,246,0.10)] text-[#8B5CF6] border border-[rgba(139,92,246,0.25)]",
+  networking: "bg-[rgba(139,92,246,0.10)] text-[#8B5CF6] border border-[rgba(139,92,246,0.25)]",
   hvac:       "bg-[rgba(6,182,212,0.10)] text-[#06B6D4] border border-[rgba(6,182,212,0.25)]",
   incendio:   "bg-[rgba(239,68,68,0.10)] text-[#EF4444] border border-[rgba(239,68,68,0.25)]",
+  fire:       "bg-[rgba(239,68,68,0.10)] text-[#EF4444] border border-[rgba(239,68,68,0.25)]",
   gas:        "bg-[rgba(245,158,11,0.10)] text-[#F59E0B] border border-[rgba(245,158,11,0.25)]",
+  spda:       "bg-[rgba(234,179,8,0.10)] text-[#EAB308] border border-[rgba(234,179,8,0.25)]",
+  generic:    "bg-[rgba(100,116,139,0.10)] text-[#64748B] border border-[rgba(100,116,139,0.25)]",
 };
 
 const statusLabels: Record<string, string> = {
