@@ -91,11 +91,15 @@ class TakeoffEngine:
             if match:
                 description = match.material_description
                 unit = match.unit
+            elif getattr(entity, 'human_description', None):
+                description = entity.human_description
+                unit = entity.unit
             else:
                 description = entity.description
                 unit = entity.unit
             
             layer_display = getattr(entity, 'layer_clean', entity.layer) or entity.layer
+            block_category = getattr(entity, 'block_category', None)
             
             key = (
                 entity.discipline.value,
@@ -116,6 +120,7 @@ class TakeoffEngine:
                     "block_name": entity.block_name,
                     "resolved_name": getattr(entity, 'resolved_name', None),
                     "category": entity.category,
+                    "block_category": block_category,
                 }
                 aggregated[key] = item
             item["quantity"] += entity.quantity

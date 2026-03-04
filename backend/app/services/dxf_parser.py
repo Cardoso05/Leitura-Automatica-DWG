@@ -1,6 +1,6 @@
 import re
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from math import sqrt
 from pathlib import Path
@@ -19,6 +19,7 @@ from app.utils.layers import (
     clean_layer_name,
     is_anonymous_block,
 )
+from app.utils.block_dictionary import resolve_block_description
 
 
 @dataclass
@@ -26,6 +27,14 @@ class LayerSummary:
     name: str
     entity_count: int
     suggested_discipline: Discipline | None
+
+
+@dataclass
+class ExtractedText:
+    text: str
+    layer: str
+    position: tuple[float, float]
+    text_type: str
 
 
 @dataclass
@@ -39,6 +48,8 @@ class ParsedEntity:
     layer_clean: str
     block_name: str | None = None
     resolved_name: str | None = None
+    human_description: str | None = None
+    block_category: str | None = None
 
 
 class DXFParser:
@@ -77,13 +88,16 @@ class DXFParser:
         
         blocks_counter: Dict[str, int] = defaultdict(int)
         linear_counter: Dict[str, float] = defaultdict(float)
+        extracted_texts: List[ExtractedText] = []
         
         ignored_layers = set()
         processed_layers = set()
+        text_layers_of_interest = {"ele-fiação", "ele-textos", "ele-chamadas", "ele-equiptos"}
 
         for entity in msp:
             layer = entity.dxf.layer
             layer_clean = clean_layer_name(layer)
+            layer_lower = layer_clean.lower()
             
             if should_ignore_layer(layer):
                 ignored_layers.add(layer)
@@ -128,6 +142,18 @@ class DXFParser:
                     radius = getattr(entity.dxf, "radius", 0)
                     if radius:
                         linear_counter[layer] += 2 * 3.1415 * radius * scale_ratio
+            
+            elif etype in {"TEXT", "MTEXT"}:
+                if any(kw in layer_lower for kw in text_layers_of_interest):
+                    text_content = self._extract_text_content(entity)
+                    if text_content and len(text_content.strip()) > 1:
+                        pos = self._get_entity_position(entity)
+                        extracted_texts.append(ExtractedText(
+                            text=text_content.strip(),
+                            layer=layer_clean,
+                            position=pos,
+                            text_type=etype,
+                        ))
 
         entities: list[ParsedEntity] = []
 
@@ -143,17 +169,29 @@ class DXFParser:
             
             display_name = resolved_name if resolved_name != block_name else block_name
             
+            block_desc = resolve_block_description(display_name)
+            human_description = None
+            block_category = None
+            
+            if block_desc:
+                human_description = block_desc.description
+                block_category = block_desc.category
+                if not block_desc.is_material:
+                    continue
+            
             entities.append(
                 ParsedEntity(
                     discipline=discipline,
                     category="block",
-                    description=display_name,
+                    description=human_description or display_name,
                     unit="un",
                     quantity=qty,
                     layer=layer,
                     layer_clean=layer_clean,
                     block_name=block_name,
                     resolved_name=resolved_name,
+                    human_description=human_description,
+                    block_category=block_category,
                 )
             )
 
@@ -179,18 +217,56 @@ class DXFParser:
 
         entities.sort(key=lambda e: (e.discipline.value, e.category, -e.quantity))
 
+        texts_by_layer = defaultdict(list)
+        for txt in extracted_texts:
+            texts_by_layer[txt.layer].append(txt.text)
+        
+        technical_texts = {
+            layer: list(set(texts))[:50]
+            for layer, texts in texts_by_layer.items()
+        }
+
         metadata = {
             "total_layers": len(processed_layers),
             "ignored_layers": len(ignored_layers),
             "generated_at": datetime.utcnow().isoformat(),
             "file": Path(dxf_path).name,
-            "parser_version": "0.2.0",
+            "parser_version": "0.3.0",
             "scale_detected": detected_scale.get("value"),
             "scale_factor": scale_ratio,
             "scale_source": detected_scale.get("source"),
+            "technical_texts": technical_texts,
+            "total_texts_extracted": len(extracted_texts),
         }
         logger.info("DXF parse completed for %s", dxf_path)
         return entities, metadata
+
+    def _extract_text_content(self, entity) -> str:
+        """Extrai o conteúdo de texto de uma entidade TEXT ou MTEXT."""
+        try:
+            if entity.dxftype() == "TEXT":
+                return entity.dxf.text or ""
+            elif entity.dxftype() == "MTEXT":
+                return entity.text or ""
+        except Exception:
+            pass
+        return ""
+
+    def _get_entity_position(self, entity) -> tuple[float, float]:
+        """Obtém a posição de uma entidade."""
+        try:
+            if entity.dxftype() == "TEXT":
+                pos = entity.dxf.insert
+                return (pos[0], pos[1])
+            elif entity.dxftype() == "MTEXT":
+                pos = entity.dxf.insert
+                return (pos[0], pos[1])
+            elif entity.dxftype() == "INSERT":
+                pos = entity.dxf.insert
+                return (pos[0], pos[1])
+        except Exception:
+            pass
+        return (0.0, 0.0)
 
     def _detect_scale(self, doc: Drawing) -> dict:
         """Detecta a escala do desenho via header ou Paper Space."""
