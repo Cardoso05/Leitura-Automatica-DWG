@@ -18,7 +18,8 @@ API FastAPI responsável por autenticação, upload/conversão de DWG/DXF, execu
 API_V1_PREFIX=/api
 PROJECT_NAME=TAKEOFF.AI
 BACKEND_CORS_ORIGINS=["http://localhost:3000","https://takeoff-ai.vercel.app"]
-SECRET_KEY=troque-isto
+# Gere algo aleatório (openssl rand -hex 32)
+SECRET_KEY=GERE_UMA_CHAVE_ALEATORIA_DE_32_CARACTERES
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 
 # Banco / Redis
@@ -41,7 +42,8 @@ ODA_OUTPUT_FORMAT=ACAD2018
 # Planos / ASAAS
 ASAAS_API_KEY=coloque_sua_chave
 ASAAS_API_URL=https://www.asaas.com/api/v3
-ASAAS_WEBHOOK_SECRET=
+# Usado para validar webhooks (HMAC SHA256)
+ASAAS_WEBHOOK_SECRET=defina-um-segredo-unico
 FREE_PROJECTS_PER_MONTH=3
 
 # Observabilidade
@@ -89,7 +91,8 @@ app/
 
 ## Integração ASAAS
 
-`services/asaas_client.py` encapsula chamadas REST (`/customers`, `/payments`). É necessário informar o `ASAAS_API_KEY`. O endpoint `/api/billing/checkout` gera pagamento pay-per-use ou upgrade de plano e retorna o link do ASAAS.
+`services/asaas_client.py` encapsula chamadas REST (`/customers`, `/payments`). É necessário informar o `ASAAS_API_KEY`. O endpoint `/api/billing/checkout` gera pagamento pay-per-use ou upgrade de plano e retorna o link do ASAAS.  
+Cada checkout é persistido na tabela `payments` (valor, tipo escolhido, usuário). O webhook `/api/billing/webhook` valida o HMAC enviado pelo ASAAS (`ASAAS_WEBHOOK_SECRET`) e consulta o pagamento via API antes de atualizar o status/planos, garantindo que valores e IDs batem com o que foi gerado pelo backend.
 
 ## Deploy Railway
 

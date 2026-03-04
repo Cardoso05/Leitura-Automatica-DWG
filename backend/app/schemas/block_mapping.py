@@ -10,8 +10,8 @@
      discipline: Discipline = Discipline.generic
 
 
- class BlockMappingCreate(BlockMappingBase):
-     is_default: bool = False
+class BlockMappingCreate(BlockMappingBase):
+    pass
 
 
  class BlockMappingRead(BlockMappingBase):
