@@ -15,3 +15,6 @@ class BlockMapping(SQLModel, table=True):
     discipline: Discipline = Field(default=Discipline.generic)
     unit: str = Field(default="un")
     is_default: bool = Field(default=False)
+    is_material: bool = Field(default=True)
+    use_regex: bool = Field(default=False)
+    category: str | None = Field(default=None)
