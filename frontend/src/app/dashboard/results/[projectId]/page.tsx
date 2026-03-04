@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Download, Loader2, Clock } from "lucide-react";
+import { ArrowLeft, Download, Loader2, Clock, Zap, Ruler, Scale } from "lucide-react";
 import { toast } from "sonner";
 
 import { DashboardShell } from "@/components/dashboard-shell";
@@ -14,23 +14,45 @@ import { useAuth } from "@/context/auth-context";
 import { downloadResult, fetchResult } from "@/lib/api-client";
 
 const disciplineMap: Record<string, string> = {
-  eletrica: "eletrica",
-  elétrica: "eletrica",
-  hidraulica: "hidraulica",
-  hidráulica: "hidraulica",
-  rede: "rede",
-  cabeamento: "rede",
+  eletrica: "electrical",
+  elétrica: "electrical",
+  electrical: "electrical",
+  hidraulica: "plumbing",
+  hidráulica: "plumbing",
+  plumbing: "plumbing",
+  rede: "networking",
+  cabeamento: "networking",
+  networking: "networking",
   hvac: "hvac",
   "ar-condicionado": "hvac",
-  incendio: "incendio",
-  incêndio: "incendio",
+  incendio: "fire",
+  incêndio: "fire",
+  fire: "fire",
   gas: "gas",
   gás: "gas",
+  spda: "spda",
+  generic: "generic",
+};
+
+const disciplineLabels: Record<string, string> = {
+  electrical: "Elétrica",
+  plumbing: "Hidráulica",
+  networking: "Rede/Dados",
+  hvac: "HVAC",
+  fire: "Incêndio",
+  gas: "Gás",
+  spda: "SPDA",
+  generic: "Outros",
 };
 
 function normalizeDiscipline(disc: string | null | undefined): string {
-  if (!disc) return "";
-  return disciplineMap[disc.toLowerCase()] ?? "";
+  if (!disc) return "generic";
+  return disciplineMap[disc.toLowerCase()] ?? "generic";
+}
+
+function getDisciplineLabel(disc: string): string {
+  const normalized = normalizeDiscipline(disc);
+  return disciplineLabels[normalized] ?? disc;
 }
 
 export default function ResultPage() {
@@ -45,15 +67,39 @@ export default function ResultPage() {
     enabled: !!token && Number.isFinite(projectId),
   });
 
-  const summaryEntries = useMemo(
-    () =>
-      data
-        ? Object.entries(data.summary).map(([discipline, total]) => ({
-            discipline,
-            total,
-          }))
-        : [],
-    [data]
+  const { blockEntries, linearEntries, metadata } = useMemo(() => {
+    if (!data) return { blockEntries: [], linearEntries: [], metadata: null };
+    
+    const blocks: Array<{ discipline: string; total: number }> = [];
+    const linear: Array<{ discipline: string; total: number }> = [];
+    
+    Object.entries(data.summary).forEach(([key, total]) => {
+      if (key.endsWith("_linear")) {
+        const disc = key.replace("_linear", "");
+        linear.push({ discipline: disc, total: total as number });
+      } else {
+        blocks.push({ discipline: key, total: total as number });
+      }
+    });
+    
+    blocks.sort((a, b) => b.total - a.total);
+    linear.sort((a, b) => b.total - a.total);
+    
+    return { 
+      blockEntries: blocks.filter(e => e.total > 0),
+      linearEntries: linear.filter(e => e.total > 0),
+      metadata: data.metadata || null
+    };
+  }, [data]);
+
+  const totalBlocks = useMemo(
+    () => blockEntries.reduce((sum, e) => sum + e.total, 0),
+    [blockEntries]
+  );
+
+  const totalLinear = useMemo(
+    () => linearEntries.reduce((sum, e) => sum + e.total, 0),
+    [linearEntries]
   );
 
   const handleDownload = async () => {
@@ -117,26 +163,89 @@ export default function ResultPage() {
           </Button>
         </div>
 
+        {/* ── Metadata Info ── */}
+        {metadata && (
+          <div className="flex flex-wrap gap-4 text-sm text-text-muted bg-blueprint-50/50 rounded-lg px-4 py-3 border border-grid-line">
+            {metadata.scale_detected && (
+              <span className="inline-flex items-center gap-1.5">
+                <Scale className="h-4 w-4" />
+                Escala: <strong className="text-blueprint-800">{metadata.scale_detected}</strong>
+              </span>
+            )}
+            {metadata.parser_version && (
+              <span>Parser v{metadata.parser_version}</span>
+            )}
+            {metadata.total_layers !== undefined && (
+              <span>{metadata.total_layers} layers processados</span>
+            )}
+            {metadata.ignored_layers !== undefined && Number(metadata.ignored_layers) > 0 && (
+              <span className="text-text-muted/70">{metadata.ignored_layers} layers ignorados</span>
+            )}
+          </div>
+        )}
+
         {/* ── Summary Cards ── */}
         <div className="grid gap-4 md:grid-cols-3">
-          {summaryEntries.map((entry) => {
-            const discKey = normalizeDiscipline(entry.discipline);
-            return (
-              <Card key={entry.discipline}>
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">
-                    {entry.discipline}
-                  </p>
-                  {discKey && (
-                    <Badge tone={discKey} variant="discipline" label={entry.discipline} />
-                  )}
-                </div>
-                <p className="font-[family-name:var(--font-display)] text-[36px] font-bold text-blueprint-800 tracking-[-0.03em] leading-none">
-                  {entry.total.toFixed(2)}
+          {/* Total de Blocos */}
+          <Card>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted flex items-center gap-1.5">
+                <Zap className="h-3.5 w-3.5" />
+                Total de Blocos
+              </p>
+              <span className="text-xs text-text-muted">unidades</span>
+            </div>
+            <p className="font-[family-name:var(--font-display)] text-[36px] font-bold text-blueprint-800 tracking-[-0.03em] leading-none">
+              {totalBlocks.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+            </p>
+            <p className="text-xs text-text-muted mt-2">
+              {blockEntries.length} disciplinas
+            </p>
+          </Card>
+
+          {/* Metragem Linear */}
+          <Card>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted flex items-center gap-1.5">
+                <Ruler className="h-3.5 w-3.5" />
+                Metragem Linear
+              </p>
+              <span className="text-xs text-text-muted">metros</span>
+            </div>
+            <p className="font-[family-name:var(--font-display)] text-[36px] font-bold text-blueprint-800 tracking-[-0.03em] leading-none">
+              {totalLinear.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-text-muted mt-2">
+              {linearEntries.length > 0 ? `${linearEntries.length} tipos de infraestrutura` : "Nenhuma metragem"}
+            </p>
+          </Card>
+
+          {/* Por disciplina - mostrar a principal */}
+          {blockEntries.length > 0 && (
+            <Card>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">
+                  Por Disciplina
                 </p>
-              </Card>
-            );
-          })}
+              </div>
+              <div className="space-y-2">
+                {blockEntries.slice(0, 4).map((entry) => {
+                  const discKey = normalizeDiscipline(entry.discipline);
+                  return (
+                    <div key={entry.discipline} className="flex items-center justify-between">
+                      <Badge tone={discKey} variant="discipline" label={getDisciplineLabel(entry.discipline)} />
+                      <span className="font-[family-name:var(--font-display)] text-sm font-bold text-blueprint-800">
+                        {entry.total.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} un
+                      </span>
+                    </div>
+                  );
+                })}
+                {blockEntries.length > 4 && (
+                  <p className="text-xs text-text-muted">+{blockEntries.length - 4} outras disciplinas</p>
+                )}
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* ── Items Table ── */}
@@ -152,10 +261,13 @@ export default function ResultPage() {
                     Item
                   </th>
                   <th className="px-4 py-3 font-[family-name:var(--font-body)] text-xs font-semibold uppercase tracking-[0.15em] text-white/80">
-                    Unidade
+                    Tipo
                   </th>
                   <th className="px-4 py-3 font-[family-name:var(--font-body)] text-xs font-semibold uppercase tracking-[0.15em] text-white/80 text-right">
                     Qtd.
+                  </th>
+                  <th className="px-4 py-3 font-[family-name:var(--font-body)] text-xs font-semibold uppercase tracking-[0.15em] text-white/80">
+                    Unidade
                   </th>
                   <th className="px-4 py-3 font-[family-name:var(--font-body)] text-xs font-semibold uppercase tracking-[0.15em] text-white/80">
                     Layer
@@ -166,6 +278,7 @@ export default function ResultPage() {
                 {data.items.map((item, index) => {
                   const discKey = normalizeDiscipline(item.discipline);
                   const isEven = index % 2 === 0;
+                  const isLinear = item.category === "linear";
                   return (
                     <tr
                       key={`${item.description}-${index}`}
@@ -173,22 +286,32 @@ export default function ResultPage() {
                       style={{ backgroundColor: isEven ? "#FFFFFF" : "#F8FAFC" }}
                     >
                       <td className="px-4 py-3">
-                        {discKey ? (
-                          <Badge tone={discKey} variant="discipline" label={item.discipline ?? discKey} />
-                        ) : (
-                          <span className="text-xs text-text-muted uppercase tracking-wide">
-                            {item.discipline ?? "—"}
-                          </span>
-                        )}
+                        <Badge 
+                          tone={discKey} 
+                          variant="discipline" 
+                          label={getDisciplineLabel(item.discipline ?? "generic")} 
+                        />
                       </td>
                       <td className="px-4 py-3 font-[family-name:var(--font-body)] text-[13px] font-medium text-text-primary">
                         {item.description}
                       </td>
-                      <td className="px-4 py-3 text-sm text-text-muted">{item.unit}</td>
-                      <td className="px-4 py-3 text-right font-[family-name:var(--font-display)] text-[15px] font-bold text-blueprint-800">
-                        {item.quantity.toFixed(2)}
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          isLinear 
+                            ? "bg-blue-50 text-blue-700" 
+                            : "bg-green-50 text-green-700"
+                        }`}>
+                          {isLinear ? "Linear" : "Bloco"}
+                        </span>
                       </td>
-                      <td className="px-4 py-3 font-[family-name:var(--font-mono)] text-[11px] text-text-muted">
+                      <td className="px-4 py-3 text-right font-[family-name:var(--font-display)] text-[15px] font-bold text-blueprint-800">
+                        {isLinear 
+                          ? item.quantity.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                          : item.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 0 })
+                        }
+                      </td>
+                      <td className="px-4 py-3 text-sm text-text-muted">{item.unit}</td>
+                      <td className="px-4 py-3 font-[family-name:var(--font-mono)] text-[11px] text-text-muted max-w-[200px] truncate" title={item.layer ?? ""}>
                         {item.layer ?? "—"}
                       </td>
                     </tr>

@@ -13,6 +13,9 @@ export type Discipline =
   | "networking"
   | "fire"
   | "hvac"
+  | "spda"
+  | "architecture"
+  | "auxiliary"
   | "generic";
 
 export interface User {
@@ -48,13 +51,25 @@ export interface TakeoffItem {
   quantity: number;
   layer?: string | null;
   block_name?: string | null;
+  resolved_name?: string | null;
+}
+
+export interface TakeoffMetadata {
+  total_layers?: number;
+  ignored_layers?: number;
+  generated_at?: string;
+  file?: string;
+  parser_version?: string;
+  scale_detected?: string | null;
+  scale_factor?: number;
+  scale_source?: string | null;
 }
 
 export interface TakeoffResult {
   project_id: number;
   summary: Record<string, number>;
   items: TakeoffItem[];
-  metadata: Record<string, string | number>;
+  metadata?: TakeoffMetadata | null;
 }
 
 export type CheckoutType = "pay_per_use" | "pro" | "business";

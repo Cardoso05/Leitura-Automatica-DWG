@@ -85,14 +85,27 @@ class TakeoffEngine:
         aggregated: Dict[Tuple, dict] = {}
 
         for entity in entities:
-            match = self._match_mapping(entity.block_name, mappings)
-            description = match.material_description if match else entity.description
-            unit = match.unit if match else entity.unit
+            block_name_for_match = entity.resolved_name or entity.block_name
+            match = self._match_mapping(block_name_for_match, mappings)
+            
+            if match:
+                description = match.material_description
+                unit = match.unit
+            elif getattr(entity, 'human_description', None):
+                description = entity.human_description
+                unit = entity.unit
+            else:
+                description = entity.description
+                unit = entity.unit
+            
+            layer_display = getattr(entity, 'layer_clean', entity.layer) or entity.layer
+            block_category = getattr(entity, 'block_category', None)
+            
             key = (
                 entity.discipline.value,
                 description,
                 unit,
-                entity.layer,
+                layer_display,
                 entity.block_name or "n/a",
                 entity.category,
             )
@@ -103,15 +116,24 @@ class TakeoffEngine:
                     "description": description,
                     "unit": unit,
                     "quantity": 0.0,
-                    "layer": entity.layer,
+                    "layer": layer_display,
                     "block_name": entity.block_name,
+                    "resolved_name": getattr(entity, 'resolved_name', None),
                     "category": entity.category,
+                    "block_category": block_category,
                 }
                 aggregated[key] = item
             item["quantity"] += entity.quantity
-            summary[entity.discipline.value] += entity.quantity
+            
+            if entity.category == "block":
+                summary[entity.discipline.value] += entity.quantity
+            elif entity.category == "linear":
+                summary[f"{entity.discipline.value}_linear"] += entity.quantity
 
-        return list(aggregated.values()), summary
+        result_list = list(aggregated.values())
+        result_list.sort(key=lambda x: (x["discipline"], x["category"], -x["quantity"]))
+        
+        return result_list, summary
 
     def _match_mapping(
         self, block_name: str | None, mappings: List[BlockMapping]
