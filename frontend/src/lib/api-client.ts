@@ -130,3 +130,65 @@ export async function createCheckout(checkout_type: CheckoutType, token: string)
     }
   );
 }
+
+export interface BlockMapping {
+  id: number;
+  block_name_pattern: string;
+  material_description: string;
+  unit: string;
+  discipline: Discipline;
+  is_default: boolean;
+  is_material: boolean;
+  use_regex: boolean;
+  category: string | null;
+  user_id: number | null;
+}
+
+export interface UnmappedBlock {
+  block_name: string;
+  resolved_name: string | null;
+  layer: string;
+  quantity: number;
+  suggested_description: string | null;
+}
+
+export async function listBlockMappings(token: string): Promise<BlockMapping[]> {
+  return apiRequest<BlockMapping[]>("/block-mappings", { token });
+}
+
+export async function createBlockMapping(
+  mapping: Omit<BlockMapping, "id" | "is_default" | "user_id">,
+  token: string
+): Promise<BlockMapping> {
+  return apiRequest<BlockMapping>("/block-mappings", {
+    method: "POST",
+    token,
+    body: mapping,
+  });
+}
+
+export async function updateBlockMapping(
+  id: number,
+  mapping: Partial<Omit<BlockMapping, "id" | "is_default" | "user_id">>,
+  token: string
+): Promise<BlockMapping> {
+  return apiRequest<BlockMapping>(`/block-mappings/${id}`, {
+    method: "POST",
+    token,
+    body: mapping,
+  });
+}
+
+export async function deleteBlockMapping(id: number, token: string): Promise<void> {
+  return apiRequest<void>(`/block-mappings/${id}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+export async function listUnmappedBlocks(
+  projectId: number,
+  token: string
+): Promise<UnmappedBlock[]> {
+  return apiRequest<UnmappedBlock[]>(`/block-mappings/unmapped/${projectId}`, { token });
+}
