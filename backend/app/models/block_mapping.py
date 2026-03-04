@@ -1,8 +1,8 @@
- from typing import Optional
+from typing import Optional
 
- from sqlmodel import Field, SQLModel
+from sqlmodel import Field, SQLModel
 
- from app.models.project import Discipline
+from app.models.project import Discipline
 
 
 class BlockMapping(SQLModel, table=True):

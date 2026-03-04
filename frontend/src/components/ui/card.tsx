@@ -46,9 +46,9 @@ export function Card({
               </h3>
             )}
             {description && (
-              <p className="font-[family-name:var(--font-body)] text-sm text-text-muted">
+              <div className="font-[family-name:var(--font-body)] text-sm text-text-muted">
                 {description}
-              </p>
+              </div>
             )}
           </div>
         )}
