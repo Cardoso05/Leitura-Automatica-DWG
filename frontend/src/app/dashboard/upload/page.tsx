@@ -11,27 +11,31 @@ export default function UploadPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-300" />
+      <div className="flex min-h-screen items-center justify-center bg-surface">
+        <Loader2 className="h-8 w-8 animate-spin text-electric" />
       </div>
     );
   }
 
   if (!token) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-center text-slate-100">
-        <p>Faça login para enviar novos arquivos.</p>
+      <div className="flex min-h-screen items-center justify-center bg-surface px-4 text-center">
+        <p className="text-sm text-text-muted">Faça login para enviar novos arquivos.</p>
       </div>
     );
   }
 
   return (
     <DashboardShell>
-      <div className="space-y-8">
+      <div className="space-y-7 font-[family-name:var(--font-body)]">
         <div>
-          <p className="text-sm uppercase tracking-[0.3em] text-emerald-200/70">Novo Takeoff</p>
-          <h1 className="text-3xl font-semibold text-white">Upload de DWG/DXF</h1>
-          <p className="text-sm text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-electric mb-1">
+            Novo Takeoff
+          </p>
+          <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold text-blueprint-800 tracking-[-0.02em]">
+            Upload de DWG/DXF
+          </h1>
+          <p className="text-sm text-text-muted mt-1">
             Complete o fluxo em três etapas: upload, mapeamento e resultado.
           </p>
         </div>

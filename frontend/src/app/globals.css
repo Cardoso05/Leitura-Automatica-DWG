@@ -1,27 +1,99 @@
 @import "tailwindcss";
 
-:root {
-  --background: #020617;
-  --foreground: #f1f5f9;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* ── Fontes ── */
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
+
+  /* ── Paleta Blueprint ── */
+  --color-blueprint-900: #0a1929;
+  --color-blueprint-800: #0f2b3c;
+  --color-blueprint-700: #1a3f54;
+
+  /* ── Cores de Destaque ── */
+  --color-electric: #00d4aa;
+  --color-electric-dark: #00b894;
+  --color-hotwire: #ff6b35;
+  --color-hotwire-dark: #e55a2b;
+
+  /* ── Superfícies ── */
+  --color-surface: #f0f4f8;
+  --color-grid-line: #e2e8f0;
+  --color-sheet: #ffffff;
+
+  /* ── Semânticas ── */
+  --color-pipe-green: #10b981;
+  --color-caution: #f59e0b;
+  --color-red-flag: #ef4444;
+  --color-text-primary: #1e293b;
+  --color-text-muted: #64748b;
+
+  /* ── Disciplinas ── */
+  --color-disc-eletrica: #ff6b35;
+  --color-disc-hidraulica: #3b82f6;
+  --color-disc-rede: #8b5cf6;
+  --color-disc-hvac: #06b6d4;
+  --color-disc-incendio: #ef4444;
+  --color-disc-gas: #f59e0b;
+
+  /* ── Background / Foreground padrão ── */
+  --color-background: #f0f4f8;
+  --color-foreground: #1e293b;
 }
 
+/* ── Base ── */
 body {
   min-height: 100vh;
-  background: radial-gradient(circle at top, rgba(16, 185, 129, 0.12), transparent 40%),
-    radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.1), transparent 35%),
-    #020617;
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), sans-serif;
+  background-color: #f0f4f8;
+  color: #1e293b;
+  font-family: var(--font-body), DM Sans, sans-serif;
 }
 
 ::selection {
-  background-color: rgba(16, 185, 129, 0.35);
-  color: #fff;
+  background-color: rgba(0, 212, 170, 0.3);
+  color: #0f2b3c;
+}
+
+/* ── Grid Pattern (CAD overlay) ── */
+.grid-pattern {
+  background-image:
+    linear-gradient(#00d4aa 1px, transparent 1px),
+    linear-gradient(90deg, #00d4aa 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.06;
+}
+
+/* ── Gradientes ── */
+.gradient-hero {
+  background: linear-gradient(135deg, #0f2b3c 0%, #1a3f54 50%, #0f2b3c 100%);
+}
+
+.gradient-cta {
+  background: linear-gradient(135deg, #00d4aa 0%, #00b894 100%);
+}
+
+.gradient-upgrade {
+  background: linear-gradient(135deg, #ff6b35 0%, #e55a2b 100%);
+}
+
+/* ── Counter animado ── */
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-count {
+  animation: count-up 0.8s ease-out both;
+}
+
+/* ── Toast ── */
+[data-sonner-toaster] [data-type="success"] {
+  border-left: 4px solid #10b981 !important;
+}
+[data-sonner-toaster] [data-type="error"] {
+  border-left: 4px solid #ef4444 !important;
+}
+[data-sonner-toaster] [data-type="info"] {
+  border-left: 4px solid #f59e0b !important;
 }

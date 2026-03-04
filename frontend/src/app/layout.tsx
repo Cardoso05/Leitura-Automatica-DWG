@@ -1,24 +1,30 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-
+import { Space_Grotesk, DM_Sans, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
-
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-display",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const dmSans = DM_Sans({
+  variable: "--font-body",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
-  title: "TAKEOFF.AI | Levantamento inteligente de materiais",
+  title: "DWGScanner.AI | Levantamento Inteligente de Materiais",
   description:
-    "Upload DWG/DXF, processamento automático com AI e exportação pronta para compras. MVP integrado com Railway + Vercel + ASAAS.",
+    "Upload de plantas DWG/DXF, parser assistido por AI, exportação Excel pronta para compras. Feito para orçamentistas, engenheiros MEP e construtoras brasileiras.",
 };
 
 export default function RootLayout({
@@ -28,7 +34,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body
+        className={`${spaceGrotesk.variable} ${dmSans.variable} ${jetbrainsMono.variable} antialiased`}
+      >
         <Providers>{children}</Providers>
       </body>
     </html>

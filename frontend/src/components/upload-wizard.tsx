@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/context/auth-context";
@@ -26,6 +27,8 @@ const disciplineOptions: { label: string; value: Discipline }[] = [
   { label: "Genérico", value: "generic" },
 ];
 
+const stepLabels = ["Upload", "Mapeamento", "Resultado"];
+
 export function UploadWizard() {
   const router = useRouter();
   const { token } = useAuth();
@@ -42,14 +45,8 @@ export function UploadWizard() {
   };
 
   const handleUpload = async (file?: File | null) => {
-    if (!token) {
-      toast.error("Você precisa estar logado para enviar um arquivo.");
-      return;
-    }
-    if (!file) {
-      toast.error("Selecione um arquivo DWG ou DXF.");
-      return;
-    }
+    if (!token) { toast.error("Você precisa estar logado para enviar um arquivo."); return; }
+    if (!file) { toast.error("Selecione um arquivo DWG ou DXF."); return; }
     setIsBusy(true);
     try {
       const response = await uploadProject(file, token);
@@ -94,7 +91,7 @@ export function UploadWizard() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `takeoff-${projectId}.xlsx`;
+      link.download = `dwgscanner-${projectId}.xlsx`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -105,8 +102,7 @@ export function UploadWizard() {
 
   const renderStepContent = () => {
     switch (step) {
-      case 1:
-        return <UploadStep onUpload={handleUpload} loading={isBusy} />;
+      case 1: return <UploadStep onUpload={handleUpload} loading={isBusy} />;
       case 2:
         return (
           <LayerMappingStep
@@ -127,26 +123,50 @@ export function UploadWizard() {
             onViewDetail={() => router.push(`/dashboard/results/${projectId}`)}
           />
         );
-      default:
-        return null;
+      default: return null;
     }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 text-sm font-medium">
-        {[1, 2, 3].map((item) => (
-          <div key={item} className="flex items-center gap-3">
-            <span
-              className={`flex h-8 w-8 items-center justify-center rounded-full border ${
-                item <= step ? "border-emerald-400 text-white" : "border-white/20 text-slate-500"
-              }`}
-            >
-              {item}
-            </span>
-            {item < 3 && <span className="h-px w-12 bg-white/10" />}
-          </div>
-        ))}
+      {/* Step indicator */}
+      <div className="flex items-center gap-2">
+        {[1, 2, 3].map((item) => {
+          const active = item <= step;
+          const current = item === step;
+          return (
+            <div key={item} className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <span
+                  className={[
+                    "flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm font-semibold transition-all duration-200",
+                    current
+                      ? "border-electric bg-electric text-blueprint-800"
+                      : active
+                      ? "border-electric/50 text-electric"
+                      : "border-grid-line text-text-muted",
+                  ].join(" ")}
+                >
+                  {item}
+                </span>
+                <span
+                  className={[
+                    "text-sm font-medium hidden sm:block",
+                    current ? "text-blueprint-800" : active ? "text-electric/70" : "text-text-muted",
+                  ].join(" ")}
+                >
+                  {stepLabels[item - 1]}
+                </span>
+              </div>
+              {item < 3 && (
+                <div
+                  className="h-px w-8 sm:w-16 transition-all duration-300"
+                  style={{ backgroundColor: item < step ? "#00D4AA" : "#E2E8F0" }}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
       {renderStepContent()}
     </div>
@@ -161,13 +181,29 @@ function UploadStep({
   loading: boolean;
 }) {
   const [selected, setSelected] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   return (
     <Card
-      title="1. Upload DWG/DXF"
+      title="Upload DWG/DXF"
       description="Aceitamos arquivos de até 50MB. Conversão para DXF é feita automaticamente."
     >
-      <label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-white/20 bg-slate-900/40 px-6 py-16 text-center text-slate-300 hover:border-emerald-400 hover:text-white">
+      <label
+        className={[
+          "mt-4 flex cursor-pointer flex-col items-center justify-center rounded-[16px] border-2 border-dashed px-6 py-16 text-center transition-all duration-200",
+          isDragging || selected
+            ? "border-electric bg-[rgba(0,212,170,0.05)]"
+            : "border-grid-line bg-surface hover:border-electric/50 hover:bg-[rgba(0,212,170,0.03)]",
+        ].join(" ")}
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file) setSelected(file);
+        }}
+      >
         <input
           type="file"
           className="hidden"
@@ -177,13 +213,22 @@ function UploadStep({
             setSelected(file ?? null);
           }}
         />
-        <p className="text-lg font-semibold text-white">
+        <div className={["mb-4 transition-transform duration-300", isDragging ? "scale-110" : ""].join(" ")}>
+          <Upload className="h-10 w-10 text-electric/60" />
+        </div>
+        <p className="font-[family-name:var(--font-display)] text-base font-bold text-blueprint-800">
           {selected ? selected.name : "Arraste ou clique para selecionar"}
         </p>
-        <p className="text-xs text-slate-400">Formatos suportados: DWG R12-R2018 e DXF</p>
+        {selected ? (
+          <p className="text-xs text-text-muted mt-1">
+            {(selected.size / 1024 / 1024).toFixed(2)} MB
+          </p>
+        ) : (
+          <p className="text-xs text-text-muted mt-1">Formatos suportados: DWG R12-R2018 e DXF</p>
+        )}
       </label>
-      <Button className="mt-6 w-full" disabled={loading} onClick={() => onUpload(selected)}>
-        {loading ? "Enviando..." : "Enviar arquivo"}
+      <Button className="mt-5 w-full" disabled={loading} onClick={() => onUpload(selected)}>
+        {loading ? "Enviando..." : "Analisar Planta"}
       </Button>
     </Card>
   );
@@ -208,26 +253,39 @@ function LayerMappingStep({
 }) {
   return (
     <Card
-      title="2. Configure o mapeamento"
+      title="Configure o mapeamento"
       description="Confirme as disciplinas antes de processar. Ajuste a escala se necessário."
     >
-      <div className="mt-4 max-h-80 overflow-y-auto rounded-2xl border border-white/10">
-        <table className="min-w-full divide-y divide-white/5 text-sm">
-          <thead>
-            <tr className="text-left text-xs uppercase tracking-[0.2em] text-slate-400">
-              <th className="px-4 py-3">Layer</th>
-              <th className="px-4 py-3">Entidades</th>
-              <th className="px-4 py-3">Disciplina</th>
+      <div className="mt-4 max-h-80 overflow-y-auto rounded-[10px] border border-grid-line">
+        <table className="min-w-full divide-y divide-grid-line text-sm">
+          <thead className="sticky top-0 bg-blueprint-800">
+            <tr className="text-left">
+              <th className="px-4 py-3 font-[family-name:var(--font-body)] text-xs font-semibold uppercase tracking-[0.15em] text-white/80">
+                Layer
+              </th>
+              <th className="px-4 py-3 font-[family-name:var(--font-body)] text-xs font-semibold uppercase tracking-[0.15em] text-white/80">
+                Entidades
+              </th>
+              <th className="px-4 py-3 font-[family-name:var(--font-body)] text-xs font-semibold uppercase tracking-[0.15em] text-white/80">
+                Disciplina
+              </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
-            {layers.map((layer) => (
-              <tr key={layer.name}>
-                <td className="px-4 py-3 font-medium text-white">{layer.name}</td>
-                <td className="px-4 py-3 text-slate-400">{layer.entity_count}</td>
+          <tbody className="divide-y divide-grid-line bg-sheet">
+            {layers.map((layer, index) => (
+              <tr
+                key={layer.name}
+                style={{ backgroundColor: index % 2 === 0 ? "#FFFFFF" : "#F8FAFC" }}
+              >
+                <td className="px-4 py-3 font-[family-name:var(--font-mono)] text-[12px] font-medium text-text-primary">
+                  {layer.name}
+                </td>
+                <td className="px-4 py-3 font-[family-name:var(--font-mono)] text-[12px] text-text-muted">
+                  {layer.entity_count}
+                </td>
                 <td className="px-4 py-3">
                   <select
-                    className="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white"
+                    className="w-full rounded-[8px] border border-grid-line bg-sheet px-3 py-1.5 text-sm text-text-primary focus:border-electric focus:outline-none focus:ring-2 focus:ring-electric/15 transition-all duration-200"
                     value={layerMap[layer.name] ?? "generic"}
                     onChange={(event) => onChange(layer.name, event.target.value as Discipline)}
                   >
@@ -243,9 +301,11 @@ function LayerMappingStep({
           </tbody>
         </table>
       </div>
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <div>
-          <label className="text-sm text-slate-300">Escala do desenho (multiplicador)</label>
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-text-primary">
+            Escala do desenho (multiplicador)
+          </label>
           <Input
             type="number"
             min="0"
@@ -257,7 +317,7 @@ function LayerMappingStep({
         </div>
         <div className="flex items-end justify-end">
           <Button className="w-full md:w-auto" disabled={loading} onClick={onProcess}>
-            {loading ? "Processando..." : "Processar takeoff"}
+            {loading ? "Processando..." : "Processar"}
           </Button>
         </div>
       </div>
@@ -277,31 +337,38 @@ function ResultStep({
   const summaryEntries = useMemo(
     () =>
       result
-        ? Object.entries(result.summary).map(([discipline, total]) => ({
-            discipline,
-            total,
-          }))
+        ? Object.entries(result.summary).map(([discipline, total]) => ({ discipline, total }))
         : [],
     [result]
   );
 
   return (
     <Card
-      title="3. Resultado pronto"
+      title="Resultado pronto"
       description="Analise o resumo abaixo ou abra o dashboard para detalhar itens e exportar o Excel."
+      statusBar="completed"
     >
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
         {summaryEntries.map((item) => (
-          <div key={item.discipline} className="rounded-xl border border-white/10 bg-slate-900/50 p-4">
-            <p className="text-sm uppercase tracking-[0.3em] text-slate-400">{item.discipline}</p>
-            <p className="text-2xl font-semibold text-white">{item.total.toFixed(2)}</p>
+          <div
+            key={item.discipline}
+            className="rounded-[10px] border border-grid-line bg-surface p-4"
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted mb-1">
+              {item.discipline}
+            </p>
+            <p className="font-[family-name:var(--font-display)] text-2xl font-bold text-blueprint-800 tracking-[-0.02em]">
+              {item.total.toFixed(2)}
+            </p>
           </div>
         ))}
         {summaryEntries.length === 0 && (
-          <p className="text-sm text-slate-400">Processamento concluído. Consulte os itens no dashboard.</p>
+          <p className="text-sm text-text-muted col-span-2">
+            Processamento concluído. Consulte os itens no dashboard.
+          </p>
         )}
       </div>
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div className="mt-5 flex flex-wrap gap-3">
         <Button onClick={onDownload}>Exportar Excel</Button>
         <Button variant="outline" onClick={onViewDetail}>
           Ver detalhes

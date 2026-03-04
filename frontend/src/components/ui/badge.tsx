@@ -1,28 +1,55 @@
 import { cn } from "@/lib/utils";
 
-const colors: Record<string, string> = {
-  completed: "bg-emerald-500/15 text-emerald-300 border-emerald-400/40",
-  processing: "bg-amber-500/15 text-amber-200 border-amber-400/40",
-  waiting_layers: "bg-sky-500/15 text-sky-200 border-sky-400/40",
-  uploaded: "bg-slate-500/15 text-slate-200 border-slate-400/40",
-  failed: "bg-rose-500/15 text-rose-200 border-rose-400/40",
+/* ── Status badges ── */
+const statusStyles: Record<string, string> = {
+  completed:      "bg-[#ECFDF5] text-[#059669] border border-[#059669]/20",
+  processing:     "bg-[#FFFBEB] text-[#D97706] border border-[#D97706]/20",
+  waiting_layers: "bg-[#EFF6FF] text-[#2563EB] border border-[#2563EB]/20",
+  uploaded:       "bg-[#F1F5F9] text-[#64748B] border border-[#64748B]/20",
+  failed:         "bg-[#FEF2F2] text-[#DC2626] border border-[#DC2626]/20",
+  pending:        "bg-[#F1F5F9] text-[#64748B] border border-[#64748B]/20",
+};
+
+/* ── Discipline badges ── */
+const disciplineStyles: Record<string, string> = {
+  eletrica:   "bg-[rgba(255,107,53,0.10)] text-[#FF6B35] border border-[rgba(255,107,53,0.25)]",
+  hidraulica: "bg-[rgba(59,130,246,0.10)] text-[#3B82F6] border border-[rgba(59,130,246,0.25)]",
+  rede:       "bg-[rgba(139,92,246,0.10)] text-[#8B5CF6] border border-[rgba(139,92,246,0.25)]",
+  hvac:       "bg-[rgba(6,182,212,0.10)] text-[#06B6D4] border border-[rgba(6,182,212,0.25)]",
+  incendio:   "bg-[rgba(239,68,68,0.10)] text-[#EF4444] border border-[rgba(239,68,68,0.25)]",
+  gas:        "bg-[rgba(245,158,11,0.10)] text-[#F59E0B] border border-[rgba(245,158,11,0.25)]",
+};
+
+const statusLabels: Record<string, string> = {
+  completed:      "Concluído",
+  processing:     "Processando",
+  waiting_layers: "Aguardando layers",
+  uploaded:       "Enviado",
+  failed:         "Erro",
+  pending:        "Pendente",
 };
 
 export function Badge({
   label,
   tone = "uploaded",
+  variant = "status",
 }: {
-  label: string;
-  tone?: keyof typeof colors;
+  label?: string;
+  tone?: string;
+  variant?: "status" | "discipline";
 }) {
+  const styles = variant === "discipline" ? disciplineStyles : statusStyles;
+  const displayLabel = label ?? (variant === "status" ? (statusLabels[tone] ?? tone) : tone);
+
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-3 py-0.5 text-xs font-medium uppercase tracking-wide",
-        colors[tone] ?? colors.uploaded
+        "inline-flex items-center rounded-[6px] px-[10px] py-[4px]",
+        "font-[family-name:var(--font-body)] text-[11px] font-semibold",
+        styles[tone] ?? (variant === "status" ? statusStyles.uploaded : disciplineStyles.rede)
       )}
     >
-      {label}
+      {displayLabel}
     </span>
   );
 }

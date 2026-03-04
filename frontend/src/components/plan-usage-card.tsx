@@ -56,9 +56,9 @@ export function PlanUsageCard({ plan }: { plan: PlanType | undefined }) {
       title={copy.title}
       description={
         <div>
-          <p className="text-sm text-slate-400">{copy.description}</p>
+          <p className="text-sm text-text-muted">{copy.description}</p>
           {activePlan === "free" && (
-            <p className="mt-2 text-xs text-slate-500">Limite: 3 projetos/mês</p>
+            <p className="mt-2 text-xs text-text-muted">Limite: 3 projetos/mês</p>
           )}
         </div>
       }

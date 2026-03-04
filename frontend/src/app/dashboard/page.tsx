@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -26,8 +26,8 @@ export default function DashboardPage() {
 
   const stats = useMemo(() => {
     const total = data?.length ?? 0;
-    const completed = data?.filter((project) => project.status === "completed").length ?? 0;
-    const processing = data?.filter((project) => project.status === "processing").length ?? 0;
+    const completed = data?.filter((p) => p.status === "completed").length ?? 0;
+    const processing = data?.filter((p) => p.status === "processing").length ?? 0;
     return [
       { label: "Projetos totais", value: total },
       { label: "Concluídos", value: completed },
@@ -37,17 +37,19 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-300" />
+      <div className="flex min-h-screen items-center justify-center bg-surface">
+        <Loader2 className="h-8 w-8 animate-spin text-electric" />
       </div>
     );
   }
 
   if (!token) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-4 text-center text-slate-100">
-        <p className="text-lg font-semibold">Você precisa estar logado para acessar o dashboard.</p>
-        <div className="mt-4 flex gap-3">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-surface px-4 text-center">
+        <h2 className="font-[family-name:var(--font-display)] text-xl font-bold text-blueprint-800">
+          Você precisa estar logado para acessar o dashboard.
+        </h2>
+        <div className="mt-5 flex gap-3">
           <Button asChild>
             <Link href="/login">Entrar</Link>
           </Button>
@@ -61,31 +63,47 @@ export default function DashboardPage() {
 
   return (
     <DashboardShell>
-      <div className="space-y-8">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="space-y-7 font-[family-name:var(--font-body)]">
+        {/* ── Header ── */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-emerald-200/70">Dashboard</p>
-            <h1 className="text-3xl font-semibold text-white">Olá, {user?.full_name || user?.email}</h1>
-            <p className="text-sm text-slate-400">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-electric mb-1">
+              Dashboard
+            </p>
+            <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold text-blueprint-800 tracking-[-0.02em]">
+              Olá, {user?.full_name?.split(" ")[0] || user?.email}
+            </h1>
+            <p className="text-sm text-text-muted mt-1">
               Acompanhe seus uploads, status de processamento e exporte resultados.
             </p>
           </div>
-          <Button onClick={() => router.push("/dashboard/upload")}>Novo takeoff</Button>
+          <Button
+            className="shrink-0 gap-2"
+            onClick={() => router.push("/dashboard/upload")}
+          >
+            <Plus className="h-4 w-4" />
+            Novo Projeto
+          </Button>
         </div>
 
+        {/* ── Stats ── */}
         <div className="grid gap-4 md:grid-cols-3">
           {stats.map((stat) => (
-            <Card
-              key={stat.label}
-              title={<p className="text-sm uppercase tracking-[0.3em] text-slate-400">{stat.label}</p>}
-            >
-              <p className="text-4xl font-semibold text-white">{stat.value}</p>
+            <Card key={stat.label} statusBar="none">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted mb-3">
+                {stat.label}
+              </p>
+              <p className="font-[family-name:var(--font-display)] text-[36px] font-bold text-blueprint-800 tracking-[-0.03em] leading-none animate-count">
+                {stat.value}
+              </p>
             </Card>
           ))}
         </div>
 
+        {/* ── Plan Usage ── */}
         <PlanUsageCard plan={user?.plan} />
 
+        {/* ── Projects Table ── */}
         <ProjectsTable projects={data} isLoading={isLoading} refetch={refetch} />
       </div>
     </DashboardShell>
