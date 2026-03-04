@@ -1,0 +1,126 @@
+from collections import defaultdict
+from datetime import datetime
+ from fnmatch import fnmatch
+ from typing import Dict, List, Tuple
+
+ from loguru import logger
+ from sqlalchemy.ext.asyncio import AsyncSession
+ from sqlmodel import select
+
+ from app.models.block_mapping import BlockMapping
+ from app.models.project import (
+     Discipline,
+     Project,
+     ProjectStatus,
+     Takeoff,
+     TakeoffItem,
+ )
+ from app.services.dxf_parser import DXFParser, ParsedEntity
+
+
+ class TakeoffEngine:
+     def __init__(self) -> None:
+         self.parser = DXFParser()
+
+     async def process(
+         self,
+         *,
+         project: Project,
+         session: AsyncSession,
+         layer_map: Dict[str, Discipline],
+         scale_ratio: float | None = None,
+     ) -> Takeoff:
+         logger.info("Starting takeoff for project %s", project.id)
+         entities, metadata = self.parser.parse(
+             project.dxf_path or project.file_path, layer_map, scale_ratio
+         )
+         mappings = await self._load_mappings(session, project.user_id)
+         aggregated, summary = self._aggregate_entities(entities, mappings)
+
+         takeoff = Takeoff(
+             project_id=project.id,
+             discipline=Discipline.generic,
+             status=ProjectStatus.completed,
+             result_json={"summary": summary, "metadata": metadata},
+         )
+         session.add(takeoff)
+         await session.flush()
+
+         for item in aggregated:
+             session.add(
+                 TakeoffItem(
+                     takeoff_id=takeoff.id,
+                    discipline=item["discipline"],
+                     category=item["category"],
+                     description=item["description"],
+                     unit=item["unit"],
+                     quantity=item["quantity"],
+                     layer=item["layer"],
+                     block_name=item.get("block_name"),
+                 )
+             )
+
+        project.status = ProjectStatus.completed
+        project.updated_at = datetime.utcnow()
+         project.result_summary = {"summary": summary, "metadata": metadata}
+         await session.commit()
+         await session.refresh(takeoff)
+         logger.info("Takeoff finished for project %s", project.id)
+         return takeoff
+
+     async def _load_mappings(
+         self, session: AsyncSession, user_id: int
+     ) -> List[BlockMapping]:
+         stmt = select(BlockMapping).where(
+             (BlockMapping.user_id == user_id) | (BlockMapping.user_id.is_(None))
+         )
+         result = await session.execute(stmt)
+         mappings = result.scalars().all()
+         return sorted(mappings, key=lambda m: (0 if m.user_id else 1, m.block_name_pattern))
+
+     def _aggregate_entities(
+         self, entities: List[ParsedEntity], mappings: List[BlockMapping]
+     ) -> tuple[List[dict], Dict[str, float]]:
+         summary: Dict[str, float] = defaultdict(float)
+         aggregated: Dict[Tuple, dict] = {}
+
+         for entity in entities:
+             match = self._match_mapping(entity.block_name, mappings)
+             description = match.material_description if match else entity.description
+             unit = match.unit if match else entity.unit
+             key = (
+                 entity.discipline.value,
+                 description,
+                 unit,
+                 entity.layer,
+                 entity.block_name or "n/a",
+                 entity.category,
+             )
+             item = aggregated.get(key)
+             if not item:
+                 item = {
+                     "discipline": entity.discipline.value,
+                     "description": description,
+                     "unit": unit,
+                     "quantity": 0.0,
+                     "layer": entity.layer,
+                     "block_name": entity.block_name,
+                     "category": entity.category,
+                 }
+                 aggregated[key] = item
+             item["quantity"] += entity.quantity
+             summary[entity.discipline.value] += entity.quantity
+
+         return list(aggregated.values()), summary
+
+     def _match_mapping(
+         self, block_name: str | None, mappings: List[BlockMapping]
+     ) -> BlockMapping | None:
+         if not block_name:
+             return None
+         lname = block_name.lower()
+         for mapping in mappings:
+             pattern = mapping.block_name_pattern.lower()
+             if fnmatch(lname, pattern):
+                 return mapping
+         return None
