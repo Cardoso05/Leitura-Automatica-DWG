@@ -32,6 +32,8 @@ class Payment(SQLModel, table=True):
     asaas_payment_id: str = Field(index=True, unique=True)
     value: float
     status: PaymentStatus = Field(default=PaymentStatus.pending)
-    raw_response: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    raw_response: dict | None = Field(
+        default=None, sa_column=Column(JSON, nullable=True)
+    )
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

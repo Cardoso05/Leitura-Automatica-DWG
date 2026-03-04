@@ -6,9 +6,9 @@ from sqlmodel import Field, Relationship, SQLModel
 
 
 class PlanType(str, Enum):
-     free = "free"
-     pro = "pro"
-     business = "business"
+    free = "free"
+    pro = "pro"
+    business = "business"
 
 
 if TYPE_CHECKING:
@@ -16,13 +16,13 @@ if TYPE_CHECKING:
 
 
 class User(SQLModel, table=True):
-     __tablename__ = "users"
+    __tablename__ = "users"
 
-     id: Optional[int] = Field(default=None, primary_key=True)
-     email: str = Field(index=True, unique=True)
-     hashed_password: str
-     full_name: str | None = None
-     company: str | None = None
+    id: Optional[int] = Field(default=None, primary_key=True)
+    email: str = Field(index=True, unique=True)
+    hashed_password: str
+    full_name: str | None = None
+    company: str | None = None
     plan: PlanType = Field(default=PlanType.free)
     is_active: bool = Field(default=True)
     asaas_customer_id: str | None = None

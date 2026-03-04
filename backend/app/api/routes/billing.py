@@ -15,7 +15,7 @@ from app.models.user import PlanType, User
 from app.schemas.billing import CheckoutRequest, CheckoutResponse
 from app.services.asaas_client import AsaasClient
 
- router = APIRouter(prefix="/billing", tags=["Billing"])
+router = APIRouter(prefix="/billing", tags=["Billing"])
 
 PLAN_PRICING = {
     CheckoutType.pay_per_use: 19.9,
@@ -46,36 +46,36 @@ def _extract_payment_id(payload: dict) -> str | None:
     return payload.get("paymentId")
 
 
- @router.post("/checkout", response_model=CheckoutResponse)
- async def generate_checkout(
-     payload: CheckoutRequest,
-     current_user: User = Depends(deps.get_current_user),
-     session: AsyncSession = Depends(get_session),
- ):
-     settings = get_settings()
-     if not settings.asaas_api_key:
-         raise HTTPException(
-             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-             detail="ASAAS não configurado",
-         )
-     client = AsaasClient()
+@router.post("/checkout", response_model=CheckoutResponse)
+async def generate_checkout(
+    payload: CheckoutRequest,
+    current_user: User = Depends(deps.get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    settings = get_settings()
+    if not settings.asaas_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="ASAAS não configurado",
+        )
+    client = AsaasClient()
 
-     if not current_user.asaas_customer_id:
-         customer = await client.create_customer(
-             name=current_user.full_name or current_user.email.split("@")[0],
-             email=current_user.email,
-         )
-         current_user.asaas_customer_id = customer["id"]
-         session.add(current_user)
-         await session.commit()
-         await session.refresh(current_user)
+    if not current_user.asaas_customer_id:
+        customer = await client.create_customer(
+            name=current_user.full_name or current_user.email.split("@")[0],
+            email=current_user.email,
+        )
+        current_user.asaas_customer_id = customer["id"]
+        session.add(current_user)
+        await session.commit()
+        await session.refresh(current_user)
 
     payment = await client.create_payment(
-         customer_id=current_user.asaas_customer_id,
-         value=PLAN_PRICING[payload.checkout_type],
-         description=f"TAKEOFF.AI - {payload.checkout_type.value}",
-         billing_type="PIX",
-     )
+        customer_id=current_user.asaas_customer_id,
+        value=PLAN_PRICING[payload.checkout_type],
+        description=f"TAKEOFF.AI - {payload.checkout_type.value}",
+        billing_type="PIX",
+    )
     payment_record = Payment(
         user_id=current_user.id,
         project_id=payload.project_id,
@@ -88,10 +88,10 @@ def _extract_payment_id(payload: dict) -> str | None:
     session.add(payment_record)
     await session.commit()
     return CheckoutResponse(
-         payment_id=payment["id"],
-         invoice_url=payment.get("invoiceUrl") or payment.get("bankSlipUrl"),
-         status=payment.get("status"),
-     )
+        payment_id=payment["id"],
+        invoice_url=payment.get("invoiceUrl") or payment.get("bankSlipUrl"),
+        status=payment.get("status"),
+    )
 
 
 @router.post("/webhook")
