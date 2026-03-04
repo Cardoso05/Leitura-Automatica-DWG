@@ -1,12 +1,6 @@
- from enum import Enum
+from pydantic import BaseModel
 
- from pydantic import BaseModel
-
-
- class CheckoutType(str, Enum):
-     pay_per_use = "pay_per_use"
-     pro = "pro"
-     business = "business"
+from app.models.payment import CheckoutType
 
 
  class CheckoutRequest(BaseModel):

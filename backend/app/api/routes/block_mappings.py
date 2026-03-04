@@ -29,14 +29,14 @@
      current_user: User = Depends(deps.get_current_user),
      session: AsyncSession = Depends(get_session),
  ):
-     mapping = BlockMapping(
-         block_name_pattern=payload.block_name_pattern,
-         material_description=payload.material_description,
-         unit=payload.unit,
-         discipline=payload.discipline,
-         user_id=None if payload.is_default else current_user.id,
-         is_default=payload.is_default,
-     )
+    mapping = BlockMapping(
+        block_name_pattern=payload.block_name_pattern,
+        material_description=payload.material_description,
+        unit=payload.unit,
+        discipline=payload.discipline,
+        user_id=current_user.id,
+        is_default=False,
+    )
      session.add(mapping)
      await session.commit()
      await session.refresh(mapping)
@@ -52,9 +52,14 @@
      stmt = select(BlockMapping).where(BlockMapping.id == mapping_id)
      result = await session.execute(stmt)
      mapping = result.scalar_one_or_none()
-     if not mapping:
+    if not mapping:
          raise HTTPException(status_code=404, detail="Mapeamento não encontrado")
-     if mapping.user_id and mapping.user_id != current_user.id:
+    if mapping.user_id is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Mapeamentos globais não podem ser removidos por contas padrão",
+        )
+    if mapping.user_id != current_user.id:
          raise HTTPException(status_code=403, detail="Sem permissão para remover")
      await session.execute(delete(BlockMapping).where(BlockMapping.id == mapping_id))
      await session.commit()
