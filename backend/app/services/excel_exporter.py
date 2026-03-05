@@ -49,6 +49,9 @@ def build_excel(
 
     meta_ws = wb.create_sheet("Metadata")
     for key, value in metadata.items():
+        if isinstance(value, (dict, list)):
+            import json
+            value = json.dumps(value, ensure_ascii=False)
         meta_ws.append([key, value])
 
     buffer = BytesIO()

@@ -45,6 +45,6 @@ class TakeoffItemRead(BaseModel):
 
 class TakeoffResult(BaseModel):
     project_id: int
-    summary: Dict[str, float]
-    items: List[TakeoffItemRead]
-    metadata: Dict[str, str | int | float]
+    summary: Dict[str, float] = {}
+    items: List[TakeoffItemRead] = []
+    metadata: Dict[str, str | int | float | Dict | List | None] = {}

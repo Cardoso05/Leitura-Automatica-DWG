@@ -60,6 +60,8 @@ export interface TakeoffMetadata {
   generated_at?: string;
   file?: string;
   parser_version?: string;
+  dxf_version?: string;
+  dxf_legacy?: boolean;
   scale_detected?: string | null;
   scale_factor?: number;
   scale_source?: string | null;

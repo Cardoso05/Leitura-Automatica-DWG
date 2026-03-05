@@ -1,7 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Eye, Loader2, RefreshCw } from "lucide-react";
+import {
+  Eye,
+  Loader2,
+  Play,
+  RefreshCw,
+  AlertCircle,
+  ChevronRight,
+} from "lucide-react";
 
 import type { Project } from "@/lib/types";
 
@@ -23,6 +30,22 @@ function formatDate(date: string) {
     day: "2-digit",
     month: "short",
   });
+}
+
+function getProjectRoute(project: Project): string {
+  switch (project.status) {
+    case "completed":
+      return `/dashboard/results/${project.id}`;
+    case "processing":
+      return `/dashboard/results/${project.id}`;
+    case "waiting_layers":
+    case "uploaded":
+      return `/dashboard/projects/${project.id}`;
+    case "failed":
+      return `/dashboard/projects/${project.id}`;
+    default:
+      return `/dashboard/projects/${project.id}`;
+  }
 }
 
 export function ProjectsTable({
@@ -68,7 +91,7 @@ export function ProjectsTable({
             Projetos recentes
           </p>
           <p className="text-sm text-text-muted mt-0.5">
-            Últimos arquivos enviados e status de processamento.
+            Clique em um projeto para continuar ou ver resultados.
           </p>
         </div>
         <Button variant="ghost" className="gap-2 text-sm" onClick={refetch}>
@@ -80,34 +103,36 @@ export function ProjectsTable({
         <table className="min-w-full divide-y divide-grid-line text-sm">
           <thead>
             <tr className="bg-surface text-left">
-              <th className="px-6 py-3 font-[family-name:var(--font-body)] text-xs font-semibold uppercase tracking-[0.15em] text-text-muted">
+              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-[0.15em] text-text-muted">
                 Projeto
               </th>
-              <th className="px-6 py-3 font-[family-name:var(--font-body)] text-xs font-semibold uppercase tracking-[0.15em] text-text-muted">
+              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-[0.15em] text-text-muted">
                 Status
               </th>
-              <th className="px-6 py-3 font-[family-name:var(--font-body)] text-xs font-semibold uppercase tracking-[0.15em] text-text-muted">
+              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-[0.15em] text-text-muted">
                 Criado em
               </th>
-              <th className="px-6 py-3 font-[family-name:var(--font-body)] text-xs font-semibold uppercase tracking-[0.15em] text-text-muted text-right">
-                Ações
+              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-[0.15em] text-text-muted text-right">
+                Ação
               </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-grid-line">
             {projects.map((project, index) => {
               const info = statusLabels[project.status] ?? statusLabels.uploaded;
+              const route = getProjectRoute(project);
               return (
                 <tr
                   key={project.id}
-                  className="transition-colors duration-150 hover:bg-[rgba(0,212,170,0.04)]"
+                  className="transition-colors duration-150 hover:bg-[rgba(0,212,170,0.06)] cursor-pointer group"
                   style={{ backgroundColor: index % 2 === 0 ? "#FFFFFF" : "#F8FAFC" }}
+                  onClick={() => router.push(route)}
                 >
                   <td className="px-6 py-4">
-                    <div className="font-[family-name:var(--font-display)] text-[13px] font-bold text-blueprint-800">
+                    <div className="text-[13px] font-bold text-blueprint-800 group-hover:text-electric transition-colors">
                       {project.name}
                     </div>
-                    <p className="font-[family-name:var(--font-mono)] text-[11px] text-text-muted mt-0.5">
+                    <p className="font-mono text-[11px] text-text-muted mt-0.5">
                       {project.original_filename}
                     </p>
                   </td>
@@ -118,21 +143,7 @@ export function ProjectsTable({
                     {formatDate(project.created_at)}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    {project.status === "completed" ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1.5"
-                        onClick={() => router.push(`/dashboard/results/${project.id}`)}
-                      >
-                        <Eye className="h-4 w-4" />
-                        Ver resultado
-                      </Button>
-                    ) : (
-                      <span className="text-xs text-text-muted">
-                        {project.status === "processing" ? "Processando..." : "Aguardando ações"}
-                      </span>
-                    )}
+                    <ProjectAction status={project.status} />
                   </td>
                 </tr>
               );
@@ -142,4 +153,48 @@ export function ProjectsTable({
       </div>
     </div>
   );
+}
+
+function ProjectAction({ status }: { status: string }) {
+  switch (status) {
+    case "completed":
+      return (
+        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-electric">
+          <Eye className="h-4 w-4" />
+          Ver resultado
+          <ChevronRight className="h-3.5 w-3.5 opacity-50" />
+        </span>
+      );
+    case "processing":
+      return (
+        <span className="inline-flex items-center gap-1.5 text-sm text-text-muted">
+          <Loader2 className="h-4 w-4 animate-spin text-electric" />
+          Processando...
+        </span>
+      );
+    case "waiting_layers":
+    case "uploaded":
+      return (
+        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600">
+          <Play className="h-4 w-4" />
+          Configurar e processar
+          <ChevronRight className="h-3.5 w-3.5 opacity-50" />
+        </span>
+      );
+    case "failed":
+      return (
+        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-red-500">
+          <AlertCircle className="h-4 w-4" />
+          Tentar novamente
+          <ChevronRight className="h-3.5 w-3.5 opacity-50" />
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center gap-1.5 text-sm text-text-muted">
+          Abrir
+          <ChevronRight className="h-3.5 w-3.5 opacity-50" />
+        </span>
+      );
+  }
 }

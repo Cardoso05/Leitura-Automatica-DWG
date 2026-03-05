@@ -1,10 +1,12 @@
 from typing import AsyncGenerator
 
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 
 from app.core.config import get_settings
+import app.models.block_cache  # noqa: F401 — registrar tabela no metadata
 
 settings = get_settings()
 
@@ -22,5 +24,15 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
+    """
+    Em produção, use `alembic upgrade head` antes de iniciar o servidor.
+    Este create_all é mantido como fallback para desenvolvimento local e
+    para criar tabelas que ainda não tenham migration.
+    """
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(SQLModel.metadata.create_all)
+        logger.info("Database tables ensured via create_all (dev fallback)")
+    except Exception as exc:
+        logger.error("Failed to initialize database: %s", exc)
+        raise

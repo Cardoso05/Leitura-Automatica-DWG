@@ -25,6 +25,7 @@ class User(SQLModel, table=True):
     company: str | None = None
     plan: PlanType = Field(default=PlanType.free)
     is_active: bool = Field(default=True)
+    is_superuser: bool = Field(default=False)
     asaas_customer_id: str | None = None
     projects_this_month: int = Field(default=0)
     projects_cycle_start: datetime | None = None

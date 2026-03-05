@@ -15,12 +15,14 @@ from app.models.project import (
     Takeoff,
     TakeoffItem,
 )
+from app.services.ai_block_resolver import AIBlockResolver, UnresolvedBlock
 from app.services.dxf_parser import DXFParser, ParsedEntity
 
 
 class TakeoffEngine:
     def __init__(self) -> None:
         self.parser = DXFParser()
+        self.ai_resolver = AIBlockResolver()
 
     async def process(
         self,
@@ -34,6 +36,9 @@ class TakeoffEngine:
         entities, metadata = self.parser.parse(
             project.dxf_path or project.file_path, layer_map, scale_ratio
         )
+
+        entities = await self._enrich_with_ai(entities, session)
+
         mappings = await self._load_mappings(session, project.user_id)
         aggregated, summary = self._aggregate_entities(entities, mappings)
 
@@ -67,6 +72,73 @@ class TakeoffEngine:
         await session.refresh(takeoff)
         logger.info("Takeoff finished for project %s", project.id)
         return takeoff
+
+    async def _enrich_with_ai(
+        self, entities: List[ParsedEntity], session: AsyncSession
+    ) -> List[ParsedEntity]:
+        """Enriquece entidades não resolvidas via cache DB + LLM."""
+        unresolved: list[UnresolvedBlock] = []
+        unresolved_indices: list[int] = []
+
+        for idx, e in enumerate(entities):
+            if e.category != "block":
+                continue
+            has_good_desc = (
+                e.human_description
+                and len(e.human_description) > 3
+                and not e.human_description.startswith("Bloco ")
+            )
+            if has_good_desc:
+                continue
+            desc_is_raw = (
+                e.description == e.resolved_name
+                or e.description == e.block_name
+                or len(e.description) <= 3
+                or e.description.startswith("Bloco ")
+                or e.description.startswith("*U")
+            )
+            if not desc_is_raw:
+                continue
+            unresolved.append(UnresolvedBlock(
+                block_name=e.block_name or "",
+                resolved_name=e.resolved_name or e.block_name or "",
+                layer=e.layer,
+                layer_clean=e.layer_clean,
+                attribs=getattr(e, "attribs", None),
+            ))
+            unresolved_indices.append(idx)
+
+        if not unresolved:
+            return entities
+
+        logger.info("AI resolver: %d blocos não resolvidos detectados", len(unresolved))
+        try:
+            resolved_map = await self.ai_resolver.resolve_batch(unresolved, session)
+        except Exception as exc:
+            logger.error("Falha no AI resolver: %s", exc)
+            return entities
+
+        updated = 0
+        for idx, block in zip(unresolved_indices, unresolved):
+            key = f"{block.layer}::{block.resolved_name}"
+            ai_result = resolved_map.get(key)
+            if ai_result and ai_result.description:
+                e = entities[idx]
+                e.description = ai_result.description
+                e.human_description = ai_result.description
+                if ai_result.discipline:
+                    try:
+                        e.discipline = Discipline(ai_result.discipline)
+                    except ValueError:
+                        pass
+                if ai_result.category:
+                    e.block_category = ai_result.category
+                updated += 1
+
+        if updated:
+            logger.info("AI resolver: %d/%d blocos enriquecidos", updated, len(unresolved))
+
+        return entities
 
     async def _load_mappings(
         self, session: AsyncSession, user_id: int

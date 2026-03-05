@@ -15,6 +15,8 @@ def ensure_month_cycle(user: User) -> None:
 
 
 def can_process_project(user: User) -> bool:
+    if getattr(user, "is_superuser", False):
+        return True
     settings = get_settings()
     ensure_month_cycle(user)
     if user.plan == PlanType.free:

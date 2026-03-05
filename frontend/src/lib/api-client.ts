@@ -89,6 +89,29 @@ export async function uploadProject(file: File, token: string): Promise<{ projec
   });
 }
 
+export interface BatchUploadResult {
+  uploaded: Array<{ project_id: number; filename: string; status: string }>;
+  errors: Array<{ filename: string; error: string }>;
+  total_success: number;
+  total_errors: number;
+}
+
+export async function uploadProjectBatch(
+  files: File[],
+  token: string,
+): Promise<BatchUploadResult> {
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append("files", file);
+  }
+  return apiRequest<BatchUploadResult>("/upload/batch", {
+    method: "POST",
+    token,
+    isFormData: true,
+    body: formData,
+  });
+}
+
 export async function fetchLayers(projectId: number, token: string): Promise<LayerInfo[]> {
   return apiRequest<LayerInfo[]>(`/projects/${projectId}/layers`, { token });
 }
@@ -191,4 +214,23 @@ export async function listUnmappedBlocks(
   token: string
 ): Promise<UnmappedBlock[]> {
   return apiRequest<UnmappedBlock[]>(`/block-mappings/unmapped/${projectId}`, { token });
+}
+
+export interface BlockFeedback {
+  block_name: string;
+  layer?: string;
+  description: string;
+  discipline?: string;
+  category?: string;
+}
+
+export async function submitBlockFeedback(
+  feedback: BlockFeedback,
+  token: string,
+): Promise<unknown> {
+  return apiRequest("/blocks/feedback", {
+    method: "POST",
+    token,
+    body: feedback,
+  });
 }

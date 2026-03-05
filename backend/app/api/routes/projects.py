@@ -1,12 +1,12 @@
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import delete, select
 
 from app.api import deps
-from app.db.session import get_session
-from app.models.project import Project, ProjectStatus, Takeoff, TakeoffItem
+from app.db.session import async_session_factory, get_session
+from app.models.project import Discipline, Project, ProjectStatus, Takeoff, TakeoffItem
 from app.models.user import User
 from app.schemas.project import (
     LayerInfo,
@@ -77,18 +77,68 @@ async def list_layers(
     ]
 
 
+async def _run_takeoff_in_background(
+    project_id: int,
+    user_id: int,
+    layer_map: dict[str, Discipline],
+    scale_ratio: float | None,
+) -> None:
+    """Roda o takeoff em background com sessão própria."""
+    async with async_session_factory() as session:
+        try:
+            project = await session.get(Project, project_id)
+            if not project:
+                return
+
+            engine = TakeoffEngine()
+            takeoff = await engine.process(
+                project=project,
+                session=session,
+                layer_map=layer_map,
+                scale_ratio=scale_ratio,
+            )
+
+            user = await session.get(User, user_id)
+            if user:
+                register_project_processed(user)
+                session.add(user)
+            await session.commit()
+            logger.info("Background takeoff finished for project %s", project_id)
+        except Exception as exc:
+            logger.error("Background takeoff failed for project %s: %s", project_id, exc)
+            project = await session.get(Project, project_id)
+            if project:
+                project.status = ProjectStatus.failed
+                session.add(project)
+                await session.commit()
+
+
 @router.post("/{project_id}/process", response_model=TakeoffResult)
 async def process_project(
     project_id: int,
     payload: ProcessRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(deps.get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     project = await _get_project_or_404(project_id, session, current_user)
-    if project.status == ProjectStatus.processing:
+
+    existing_stmt = select(Takeoff).where(Takeoff.project_id == project.id).order_by(Takeoff.id.desc())
+    existing_result = await session.execute(existing_stmt)
+    existing_takeoffs = existing_result.scalars().all()
+
+    if project.status == ProjectStatus.processing and existing_takeoffs:
         raise HTTPException(status_code=409, detail="Projeto já está sendo processado")
+
+    if project.status == ProjectStatus.processing and not existing_takeoffs:
+        project.status = ProjectStatus.uploaded
+
     if not can_process_project(current_user):
         raise HTTPException(status_code=402, detail="Limite do plano Free atingido")
+
+    for old_takeoff in existing_takeoffs:
+        await session.execute(delete(TakeoffItem).where(TakeoffItem.takeoff_id == old_takeoff.id))
+        await session.execute(delete(Takeoff).where(Takeoff.id == old_takeoff.id))
 
     project.status = ProjectStatus.processing
     project.layer_map = {layer: discipline.value for layer, discipline in payload.layer_map.items()}
@@ -96,38 +146,20 @@ async def process_project(
     await session.commit()
     await session.refresh(project)
 
-    engine = TakeoffEngine()
-    takeoff = await engine.process(
-        project=project,
-        session=session,
+    background_tasks.add_task(
+        _run_takeoff_in_background,
+        project_id=project.id,
+        user_id=current_user.id,
         layer_map=payload.layer_map,
         scale_ratio=payload.scale_ratio,
     )
-    register_project_processed(current_user)
-    session.add(current_user)
-    await session.commit()
 
-    items_stmt = select(TakeoffItem).where(TakeoffItem.takeoff_id == takeoff.id)
-    items_result = await session.execute(items_stmt)
-    items = items_result.scalars().all()
-    response = TakeoffResult(
+    return TakeoffResult(
         project_id=project.id,
-        summary=takeoff.result_json.get("summary", {}),
-        items=[
-            TakeoffItemRead(
-                discipline=item.discipline,
-                category=item.category,
-                description=item.description,
-                unit=item.unit,
-                quantity=item.quantity,
-                layer=item.layer,
-                block_name=item.block_name,
-            )
-            for item in items
-        ],
-        metadata=takeoff.result_json.get("metadata", {}),
+        summary={},
+        items=[],
+        metadata={"status": "processing"},
     )
-    return response
 
 
 @router.get("/{project_id}/result", response_model=TakeoffResult)
@@ -137,9 +169,9 @@ async def project_result(
     session: AsyncSession = Depends(get_session),
 ):
     project = await _get_project_or_404(project_id, session, current_user)
-    stmt = select(Takeoff).where(Takeoff.project_id == project.id)
+    stmt = select(Takeoff).where(Takeoff.project_id == project.id).order_by(Takeoff.id.desc())
     result = await session.execute(stmt)
-    takeoff = result.scalar_one_or_none()
+    takeoff = result.scalars().first()
     if not takeoff:
         raise HTTPException(status_code=404, detail="Projeto ainda não processado")
     items_stmt = select(TakeoffItem).where(TakeoffItem.takeoff_id == takeoff.id)
@@ -171,9 +203,9 @@ async def export_project(
     session: AsyncSession = Depends(get_session),
 ):
     project = await _get_project_or_404(project_id, session, current_user)
-    stmt = select(Takeoff).where(Takeoff.project_id == project.id)
+    stmt = select(Takeoff).where(Takeoff.project_id == project.id).order_by(Takeoff.id.desc())
     result = await session.execute(stmt)
-    takeoff = result.scalar_one_or_none()
+    takeoff = result.scalars().first()
     if not takeoff:
         raise HTTPException(status_code=404, detail="Projeto ainda não processado")
 
